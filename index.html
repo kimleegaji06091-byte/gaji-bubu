@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>월별 가계부 정산 템플릿 생성기</title>
+  <style>
+    :root {
+      --bg-color: #f4f6f8;
+      --card-bg: #ffffff;
+      --primary: #4A607A;
+      --accent: #2EB872;
+      --text-main: #333333;
+      --border-color: #e1e4e8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { background-color: var(--bg-color); color: var(--text-main); padding: 20px; }
+
+    .header-bar { max-width: 1200px; margin: 0 auto 20px; display: flex; justify-content: space-between; align-items: center; }
+    .header-bar h1 { font-size: 1.5rem; color: #1a252c; font-weight: 700; }
+
+    .app-layout { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 900px) { .app-layout { grid-template-columns: 1fr; } }
+
+    .card { background: var(--card-bg); border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 16px; border: 1px solid var(--border-color); }
+    .card-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; color: #2c3e50; }
+
+    .input-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .input-row label { width: 100px; font-weight: 600; font-size: 0.9rem; color: #555; }
+    input[type="text"], input[type="number"] {
+      flex: 1; padding: 9px 12px; border: 1px solid #d0d7de; border-radius: 6px; font-size: 0.9rem; transition: border 0.2s;
+    }
+    input:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(74, 96, 122, 0.1); }
+
+    .item-name { width: 40% !important; }
+    .item-val { width: 45% !important; }
+
+    button { cursor: pointer; border: none; border-radius: 6px; font-weight: 600; transition: all 0.2s; }
+    .btn-add { background: #eef2f6; color: #3366ff; padding: 4px 10px; font-size: 0.8rem; }
+    .btn-add:hover { background: #e0e8f5; }
+    .btn-del { background: #fee2e2; color: #dc2626; padding: 6px 10px; font-size: 0.8rem; }
+    .btn-del:hover { background: #fca5a5; }
+
+    .btn-save { background: #4f46e5; color: white; padding: 10px 16px; font-size: 0.9rem; }
+    .btn-load { background: #0891b2; color: white; padding: 10px 16px; font-size: 0.9rem; }
+    
+    .action-header { display: flex; gap: 10px; margin-bottom: 15px; }
+
+    .preview-card { position: sticky; top: 20px; display: flex; flex-direction: column; height: calc(100vh - 80px); }
+    textarea {
+      flex: 1; width: 100%; border: 1px solid #d0d7de; border-radius: 8px; padding: 16px; font-size: 0.95rem;
+      line-height: 1.6; background: #fafafa; resize: none; font-family: 'Courier New', monospace; color: #24292f;
+    }
+    
+    .preview-btns { display: flex; gap: 10px; margin-top: 12px; }
+    .btn-copy { flex: 1; background: #2ea44f; color: white; padding: 12px; font-size: 0.95rem; border-radius: 8px; }
+    .btn-copy:hover { background: #2c974b; }
+    .btn-txt { flex: 1; background: #0969da; color: white; padding: 12px; font-size: 0.95rem; border-radius: 8px; }
+    .btn-txt:hover { background: #0860ca; }
+  </style>
+</head>
+<body>
+
+<div class="header-bar">
+  <h1>💸 월별 가계부 정산 템플릿</h1>
+  <div class="action-header">
+    <button class="btn-save" onclick="saveToStorage()">💾 브라우저 저장</button>
+    <button class="btn-load" onclick="loadFromStorage()">📂 데이터 불러오기</button>
+  </div>
+</div>
+
+<div class="app-layout">
+  <div class="input-container">
+    
+    <div class="card">
+      <div class="card-title">📅 기본 정보</div>
+      <div class="input-row">
+        <label>진행 월 (Month):</label>
+        <input type="number" id="month" value="7" style="width: 80px;" oninput="render()"> 월
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span>💡 [정산 메모]</span>
+        <button class="btn-add" onclick="addMemoRow()">+ 메모 추가</button>
+      </div>
+      <div id="memo-list">
+        <div class="input-row">
+          <input type="text" class="memo-item" value="김가가 비상금에서 선지급한 금액 발생 → 김가에게 76,410원 정산 지급 필요" oninput="render()">
+          <button class="btn-del" onclick="removeRow(this)">삭제</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span>🏢 [대출 관련]</span>
+        <button class="btn-add" onclick="addItemRow('loan-list')">+ 항목 추가</button>
+      </div>
+      <div id="loan-list">
+        <div class="input-row"><input type="text" class="item-name" value="신여대출 상환" oninput="render()"><input type="text" class="item-val" value="790,000원" oninput="render()"><button class="btn-del" onclick="removeRow(this)">삭제</button></div>
+        <div class="input-row"><input type="text" class="item-name" value="이가대출 상환" oninput="render()"><input type="text" class="item-val" value="710,000원" oninput="render()"><button class="btn-del" onclick="removeRow(this)">삭제</button></div>
+        <div class="input-row"><input type="text" class="item-name" value="전세대출 이자" oninput="render()"><input type="text" class="item-val" value="원" oninput="render()"><button class="btn-del" onclick="removeRow(this)">삭제</button></div>
+        <div class="input-row"><input type="text" class="item-name" value="신여대출 이자" oninput="render()"><input type="text" class="item-val" value="원" oninput="render()"><button class="btn-del" onclick="removeRow(this)">삭제</button></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span>💰 [공통 저축/생활]</span>
+        <button class="btn-add" onclick="addItemRow('common-list')">+ 항목 추가</button>
+      </div>
+      <div id="common-list">
+        <div class="input-row"><input type="text" class="item-name" value="적금" oninput="render()"><input type="text" class="item-val" value="원" oninput="render()"><button class="btn-del" onclick="removeRow(this)">삭제</button></div>
+        <div class="input-row"><input type="text" class="item-name" value="비상금" oninput="render()"><input type="text" class="item-val" value="250,000원" oninput="render()"><button class="btn-del" onclick="removeRow(this)">삭제</button></div>
+        <div class="input-row"><input type="text" class="item-name" value="생활비" oninput="render()"><input type="text" class="item-val" value="450,000원" oninput="render()"><button class="btn-del" onclick="removeRow(this)">삭제</button></div>
+        <div class="input-row"><input type="text" class="item-name" value="음처기(1/12)" oninput="render()"><input type="text" class="item-val" value="30,120원" oninput="render()"><button class="btn-del" onclick="removeRow(this)">삭제</button></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span>⚡ [공과금]</span>
+        <button class="btn-add" onclick="addItemRow('utility-list')">+ 항목 추가</button>
+      </div>
+      <div id="utility-list">
+        <div class="input-row"><input type="text" class="item-name" value="가스비" oninput="render()"><input type="text" class="item-val" value="14,890원" oninput="render()"><button class="btn-del" onclick="removeRow(this)">삭제</button></div>
+        <div class="input-row"><input type="text" class="item-name" value="관리비" oninput="render()"><input type="text" class="item-val" value="원" oninput="render()"><button class="btn-del" onclick="removeRow(this)">삭제</button></div>
+        <div class="input-row"><input type="text" class="item-name" value="월세" oninput="render()"><input type="text" class="item-val" value="80,000원" oninput="render()"><button class="btn-del" onclick="removeRow(this)">삭제</button></div>
+        <div class="input-row"><input type="text" class="item-name" value="인터넷" oninput="render()"><input type="text" class="item-val" value="33,330원" oninput="render()"><button class="btn-del" onclick="removeRow(this)">삭제</button></div>
+        <div class="input-row"><input type="text" class="item-name" value="핸드폰 통신" oninput="render()"><input type="text" class="item-val" value="26,000원" oninput="render()"><button class="btn-del" onclick="removeRow(this)">삭제</button></div>
+        <div class="input-row"><input type="text" class="item-name" value="이모티콘" oninput="render()"><input type="text" class="item-val" value="7,800원" oninput="render()"><button class="btn-del" onclick="removeRow(this)">삭제</button></div>
+        <div class="input-row"><input type="text" class="item-name" value="쿠팡" oninput="render()"><input type="text" class="item-val" value="7,890원" oninput="render()"><button class="btn-del" onclick="removeRow(this)">삭제</button></div>
+        <div class="input-row"><input type="text" class="item-name" value="배민클럽" oninput="render()"><input type="text" class="item-val" value="5,490원" oninput="render()"><button class="btn-del" onclick="removeRow(this)">삭제</button></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span>👨‍💻 [김가]</span>
+        <button class="btn-add" onclick="addItemRow('kim-list')">+ 항목 추가</button>
+      </div>
+      <div id="kim-list">
+        <div class="input-row"><input type="text" class="item-name" value="용돈" oninput="render()"><input type="text" class="item-val" value="350,000원" oninput="render()"><button class="btn-del" onclick="removeRow(this)">삭제</button></div>
+        <div class="input-row"><input type="text" class="item-name" value="가족통장" oninput="render()"><input type="text" class="item-val" value="100,000원" oninput="render()"><button class="btn-del" onclick="removeRow(this)">삭제</button></div>
+        <div class="input-row"><input type="text" class="item-name" value="주차" oninput="render()"><input type="text" class="item-val" value="100,000원" oninput="render()"><button class="btn-del" onclick="removeRow(this)">삭제</button></div>
+        <div class="input-row"><input type="text" class="item-name" value="보험료" oninput="render()"><input type="text" class="item-val" value="86,736원" oninput="render()"><button class="btn-del" onclick="removeRow(this)">삭제</button></div>
+        <div class="input-row"><input type="text" class="item-name" value="주유" oninput="render()"><input type="text" class="item-val" value="80,000원" oninput="render()"><button class="btn-del" onclick="removeRow(this)">삭제</button></div>
+        <div class="input-row"><input type="text" class="item-name" value="식비" oninput="render()"><input type="text" class="item-val" value="50,000원" oninput="render()"><button class="btn-del" onclick="removeRow(this)">삭제</button></div>
+        <div class="input-row"><input type="text" class="item-name" value="정비적금" oninput="render()"><input type="text" class="item-val" value="50,000원" oninput="render()"><button class="btn-del" onclick="removeRow(this)">삭제</button></div>
+        <div class="input-row"><input type="text" class="item-name" value="운전자보험" oninput="render()"><input type="text" class="item-val" value="2,500원" oninput="render()"><button class="btn-del" onclick="removeRow(this)">삭제</button></div>
+        <div class="input-row"><input type="text" class="item-name" value="헬스" oninput="render()"><input type="text" class="item-val" value="43,900원" oninput="render()"><button class="btn-del" onclick="removeRow(this)">삭제</button></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <span>👩‍💻 [이가]</span>
+        <button class="btn-add" onclick="addItemRow('lee-list')">+ 항목 추가</button>
+      </div>
+      <div id="lee-list">
+        <div class="input-row"><input type="text" class="item-name" value="용돈" oninput="render()"><input type="text" class="item-val" value="350,000원" oninput="render()"><button class="btn-del" onclick="removeRow(this)">삭제</button></div>
+        <div class="input-row"><input type="text" class="item-name" value="보험료" oninput="render()"><input type="text" class="item-val" value="76,410원" oninput="render()"><button class="btn-del" onclick="removeRow(this)">삭제</button></div>
+        <div class="input-row"><input type="text" class="item-name" value="대중교통" oninput="render()"><input type="text" class="item-val" value="70,000원" oninput="render()"><button class="btn-del" onclick="removeRow(this)">삭제</button></div>
+        <div class="input-row"><input type="text" class="item-name" value="여행통장" oninput="render()"><input type="text" class="item-val" value="50,000원" oninput="render()"><button class="btn-del" onclick="removeRow(this)">삭제</button></div>
+        <div class="input-row"><input type="text" class="item-name" value="헬스" oninput="render()"><input type="text" class="item-val" value="35,073원" oninput="render()"><button class="btn-del" onclick="removeRow(this)">삭제</button></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="preview-container">
+    <div class="card preview-card">
+      <div class="card-title">📋 실시간 생성 문구</div>
+      <textarea id="preview" readonly></textarea>
+      <div class="preview-btns">
+        <button class="btn-copy" onclick="copyText()">📋 전체 복사</button>
+        <button class="btn-txt" onclick="downloadTxt()">📥 TXT 다운로드</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="text/javascript">
+var _0x4d12=["\x70\x61\x72\x65\x6E\x74\x45\x6C\x65\x6D\x65\x6E\x74","\x72\x65\x6D\x6F\x76\x65","\x6D\x65\x6D\x6F\x2D\x6C\x69\x73\x74","\x67\x65\x74\x45\x6C\x65\x6D\x65\x6E\x74\x42\x79\x49\x64","\x63\x72\x65\x61\x74\x65\x45\x6C\x65\x6D\x65\x6E\x74","\x69\x6E\x70\x75\x74\x2D\x72\x6F\x77","\x63\x6C\x61\x73\x73\x4E\x61\x6D\x65","\x3C\x69\x6E\x70\x75\x74\x20\x74\x79\x70\x65\x3D\x22\x74\x65\x78\x74\x22\x20\x63\x6C\x61\x73\x73\x3D\x22\x6D\x65\x6D\x6F\x2D\x69\x74\x65\x6D\x22\x20\x76\x61\x6C\x75\x65\x3D\x22","\x22\x20\x70\x6C\x61\x63\x65\x68\x6F\x6C\x64\x65\x72\x3D\x22\xBA\xA1\xC0\xCE\x20\xB3\xD2\xBF\xEB\x20\xC0\xD2\xB7\xC0\x22\x20\x6F\x6E\x69\x6E\x70\x75\x74\x3D\x22\x72\x65\x6E\x64\x65\x72\x28\x29\x22\x3E\x3C\x62\x75\x74\x74\x6F\x6E\x20\x63\x6C\x61\x73\x73\x3D\x22\x62\x74\x6E\x2D\x64\x65\x6C\x22\x20\x6F\x6E\x63\x6C\x69\x63\x6B\x3D\x22\x72\x65\x6D\x6F\x76\x65\x52\x6F\x77\x28\x74\x68\x69\x73\x29\x22\x3E\xC2\xF0\xC1\xA6\x3C\x2F\x62\x75\x74\x74\x6F\x6E\x3E","\x69\x6E\x6E\x65\x72\x48\x54\x4D\x4C","\x61\x70\x70\x65\x6E\x64\x43\x68\x69\x6C\x64","\x3C\x69\x6E\x70\x75\x74\x20\x74\x79\x70\x65\x3D\x22\x74\x65\x78\x74\x22\x20\x63\x6C\x61\x73\x73\x3D\x22\x69\x74\x65\x6D\x2D\x6E\x61\x6D\x65\x22\x20\x76\x61\x6C\x75\x65\x3D\x22","\x22\x20\x70\x6C\x61\x63\x65\x68\x6F\x6C\x64\x65\x72\x3D\x22\xED\xAD\xB0\xD1\xB8\xED\x22\x20\x6F\x6E\x69\x6E\x70\x75\x74\x3D\x22\x72\x65\x6E\x64\x65\x72\x28\x29\x22\x3E\x3C\x69\x6E\x70\x75\x74\x20\x74\x79\x70\x65\x3D\x22\x74\x65\x78\x74\x22\x20\x63\x6C\x61\x73\x73\x3D\x22\x69\x74\x65\x6D\x2D\x76\x61\x6C\x22\x20\x76\x61\x6C\x75\x65\x3D\x22","\x22\x20\x70\x6C\x61\x63\x65\x68\x6F\x6C\x64\x65\x72\x3D\x22\xB1\xDD\xC1\xA4\x22\x20\x6F\x6E\x69\x6E\x70\x75\x74\x3D\x22\x72\x65\x6E\x64\x65\x72\x28\x29\x22\x3E\x3C\x62\x75\x74\x74\x6F\x6E\x20\x63\x6C\x61\x73\x73\x3D\x22\x62\x74\x6E\x2D\x64\x65\x6C\x22\x20\x6F\x6E\x63\x6C\x69\x63\x6B\x3D\x22\x72\x65\x6D\x6F\x76\x65\x52\x6F\x77\x28\x74\x68\x69\x73\x29\x22\x3E\xC2\xF0\xC1\xA6\x3C\x2F\x62\x75\x74\x74\x6F\x6E\x3E","\x71\x75\x65\x72\x79\x53\x65\x6C\x65\x63\x74\x6F\x72\x41\x6C\x6C","\x23","\x20\x2E\x69\x6E\x70\x75\x74\x2D\x72\x6F\x77","\x2E\x69\x74\x65\x6D\x2D\x6E\x61\x6D\x65","\x76\x61\x6C\x75\x65","\x74\x72\x69\x6D","\x2E\x69\x74\x65\x6D\x2D\x76\x61\x6C","\x22\x20\x20\x0A","\x66\x6F\x72\x45\x61\x63\x68","\x6D\x6F\x6E\x74\x68","\x23\x6D\x65\x6D\x6F\x2D\x6C\x69\x73\x74\x20\x2E\x6D\x65\x6D\x6F\x2D\x69\x74\x65\x6D","\x3E\x20\uD83D\uDCA1\x20\x2A\x2A\x5B","\xBF\xF9\x20\xC1\xA4\xBB\xF3\x20\xCE\xE1\xCE\xAA\x5D\x2A\x2A\x0A","\x3E\x20\u2022\x20","\x0A","\x0A\x2D\x2D\x2D\x0A\x0A","\x5B","\xBF\xF9\x20\xB0\xA1\xB0\xE8\xBD\xCE\x20\xC1\xA4\xBB\xF3\x20\xBF\xCF\xB7\xCE\x21\x20\uD83D\uDCB8\x5D\x0A\x0A\xC0\xCC\x20\x20\xB1\xE2\x20\xBD\xF3\x20\x20\xBD\xF3\x20\x20\xC0\xFC\x20\x20\x20\xC1\xA4\x20\x20\x20\x20\x21\x0A\x0A\u25AB\uFE0F\x20\xC0\xFC\u20\xC0\xFC\x20\x3A\x20\xBF\xF9\x20\x20\x0A\x20\x28\xC0\xCC\x20\xBF\xF9\x20\x2F\x20\xB1\xE2\x20\xBF\xF9\x29\x20\x0A\u25AB\uFE0F\x20\xC0\xFC\u20\xC1\xF0\x20\x3A\x20\xBF\xF9\x20\x0A\u25AB\uFE0F\x20\xC0\xFA\u20\xC1\xA4\x20\x3A\x20\xBF\xF9\x20\x0A\x0A","\uD83C\uDFE2\x20\x2A\x2A\x5B\xB0\xA1\x20\xB0\xFC\xB7\xC0\x5D\x2A\x2A\x20\xBF\xF9\x20\x0A","\x6C\x6F\x61\x6E\x2D\x6C\x69\x73\x74","\uD83D\uDCB0\x20\x2A\x2A\x5B\xB0\xF1\x20\xC1\xA0\x20\xC1\xA4\x2F\xBB\xFD\x20\x20\x5D\x2A\x2A\x20\xBF\xF9\x20\x0A","\x63\x6F\x6D\x6D\x6F\x6E\x2D\x6C\x69\x73\x74","\u26A1\x20\x2A\x2A\x5B\xB0\xF1\x20\xB0\xFA\x20\x5D\x2A\x2A\x20\xBF\xF9\x20\x0A","\x75\x74\x69\x6C\x69\x74\x79\x2D\x6C\x69\x73\x74","\uD83D\uDC68\u200D\uD83D\uDCBB\x20\x2A\x2A\x5B\xB1\xE2\x20\x5D\x2A\x2A\x20\x39\x31\x33\x2C\x31\x33\x36\xBF\xF9\x20\x0A","\x6B\x69\x6D\x2D\x6C\x69\x73\x74","\uD83D\uDC69\u200D\uD83D\uDCBB\x20\x2A\x2A\x5B\xC0\xCC\x20\x5D\x2A\x2A\x20\x35\x38\x31\x2C\x34\x38\x33\xBF\xF9\x20\x0A","\x6C\x65\x65\x2D\x6C\x69\x73\x74","\xC0\xCC\x20\x20\xB1\xE2\x20\xB0\xED\x20\x20\x20\x20\x2E\x20\x20\x20\x20","\xBF\xF9\x20\uD83C\uDF31","\x70\x72\x65\x76\x69\x65\x77","\x67\x61\x67\x79\x65\x62\x75\x5F\x64\x61\x74\x61","\x73\x74\x72\x69\x6E\x67\x69\x66\x79","\x73\x65\x74\x49\x74\x65\x6D","\x61\x6C\x65\x72\x74","\x67\x65\x74\x49\x74\x65\x6D","\x70\x61\x72\x73\x65","\x73\x65\x6C\x65\x63\x74","\x65\x78\x65\x63\x43\x6F\x6D\x6D\x61\x6E\x64","\x63\x6F\x70\x79","\x74\x65\x78\x74\x2F\x70\x6C\x61\x69\x6E\x3B\x63\x68\x61\x72\x73\x65\x74\x3D\x75\x74\x66\x2D\x38","\x63\x72\x65\x61\x74\x65\x4F\x62\x6A\x65\x63\x74\x55\x52\x4C","\xBF\xF9\x5F\xB0\xA1\xB0\xE8\xBD\xCE\x5F\xC1\xA4\xBB\xF3\x2E\x74\x78\x74","\x64\x6F\x77\x6E\x6C\x6F\x61\x64","\x68\x72\x65\x66","\x63\x6C\x69\x63\x6B","\x72\x65\x76\x6F\x6B\x65\x4F\x62\x6A\x65\x63\x74\x55\x52\x4C","\x6F\x6E\x6C\x6F\x61\x64"];function removeRow(_0x386ex2){_0x386ex2[_0x4d12[0]][_0x4d12[1]]();render()}function addMemoRow(_0x386ex3=""){var _0x386ex4=document[_0x4d12[3]](_0x4d12[2]);var _0x386ex5=document[_0x4d12[4]]("div");_0x386ex5[_0x4d12[6]]=_0x4d12[5];_0x386ex5[_0x4d12[9]]=_0x4d12[7]+_0x386ex3+_0x4d12[8];_0x386ex4[_0x4d12[10]](_0x386ex5);render()}function addItemRow(_0x386ex6,_0x386ex7="",_0x386ex8=""){var _0x386ex4=document[_0x4d12[3]](_0x386ex6);var _0x386ex5=document[_0x4d12[4]]("div");_0x386ex5[_0x4d12[6]]=_0x4d12[5];_0x386ex5[_0x4d12[9]]=_0x4d12[11]+_0x386ex7+_0x4d12[12]+_0x386ex8+_0x4d12[13];_0x386ex4[_0x4d12[10]](_0x386ex5);render()}function buildGroupText(_0x386ex6){var _0x386ex9=document[_0x4d12[14]](_0x4d12[15]+_0x386ex6+_0x4d12[16]);var _0x386exa="";_0x386ex9[_0x4d12[22]](function(_0x386exb){var _0x386exc=_0x386exb["querySelector"](_0x4d12[17])[_0x4d12[18]][_0x4d12[19]]();var _0x386exd=_0x386exb["querySelector"](_0x4d12[20])[_0x4d12[18]][_0x4d12[19]]();if(_0x386exc!==""){_0x386exa+="• "+_0x386exc+": "+_0x386exd+"\n"}});return _0x386exa}function render(){var _0x386exe=document[_0x4d12[3]](_0x4d12[23])[_0x4d12[18]];var _0x386exf=Number(_0x386exe)===12?1:Number(_0x386exe)+1;var _0x386ex10=document[_0x4d12[14]](_0x4d12[24]);var _0x386ex11="";var _0x386ex12=false;_0x386ex10[_0x4d12[22]](function(_0x386ex13){if(_0x386ex13[_0x4d12[18]][_0x4d12[19]]()!==""){if(!_0x386ex12){_0x386ex11+=_0x4d12[25]+_0x386exe+_0x4d12[26];_0x386ex12=true}_0x386ex11+=_0x4d12[27]+_0x386ex13[_0x4d12[18]][_0x4d12[19]]()+_0x4d12[28]}});if(_0x386ex12){_0x386ex11+=_0x4d12[29]};var _0x386ex14=_0x4d12[30]+_0x386exe+_0x4d12[31]+_0x386ex11+_0x4d12[32]+buildGroupText(_0x4d12[33])+_0x4d12[34]+buildGroupText(_0x4d12[35])+_0x4d12[36]+buildGroupText(_0x4d12[37])+_0x4d12[38]+buildGroupText(_0x4d12[39])+_0x4d12[40]+buildGroupText(_0x4d12[41])+_0x4d12[42]+_0x386exf+_0x4d12[43];document[_0x4d12[3]](_0x4d12[44])[_0x4d12[18]]=_0x386ex14}function saveToStorage(){var _0x386ex15={month:document[_0x4d12[3]](_0x4d12[23])[_0x4d12[18]],memos:Array["from"](document[_0x4d12[14]](_0x4d12[24]))["map"](function(_0x386ex16){return _0x386ex16[_0x4d12[18]]}),loans:getGroupData(_0x4d12[33]),commons:getGroupData(_0x4d12[35]),utilities:getGroupData(_0x4d12[37]),kims:getGroupData(_0x4d12[39]),lees:getGroupData(_0x4d12[41])};localStorage[_0x4d12[47]](_0x4d12[45],JSON[_0x4d12[46]](_0x386ex15));window[_0x4d12[48]]("저장되었습니다! 💾")}function loadFromStorage(){var _0x386ex17=localStorage[_0x4d12[49]](_0x4d12[45]);if(!_0x386ex17){window[_0x4d12[48]]("저장된 내역이 없습니다!");return};var _0x386ex15=JSON[_0x4d12[50]](_0x386ex17);document[_0x4d12[3]](_0x4d12[23])[_0x4d12[18]]=_0x386ex15[_0x4d12[23]];restoreGroup(_0x4d12[2],_0x386ex15["memos"],function(_0x386ex18){addMemoRow(_0x386ex18)});restoreGroup(_0x4d12[33],_0x386ex15["loans"],function(_0x386exb){addItemRow(_0x4d12[33],_0x386exb["name"],_0x386exb["val"])});restoreGroup(_0x4d12[35],_0x386ex15["commons"],function(_0x386exb){addItemRow(_0x4d12[35],_0x386exb["name"],_0x386exb["val"])});restoreGroup(_0x4d12[37],_0x386ex15["utilities"],function(_0x386exb){addItemRow(_0x4d12[37],_0x386exb["name"],_0x386exb["val"])});restoreGroup(_0x4d12[39],_0x386ex15["kims"],function(_0x386exb){addItemRow(_0x4d12[39],_0x386exb["name"],_0x386exb["val"])});restoreGroup(_0x4d12[41],_0x386ex15["lees"],function(_0x386exb){addItemRow(_0x4d12[41],_0x386exb["name"],_0x386exb["val"])});render();window[_0x4d12[48]]("불러왔습니다! 📂")}function getGroupData(_0x386ex6){var _0x386ex9=document[_0x4d12[14]](_0x4d12[15]+_0x386ex6+_0x4d12[16]);return Array["from"](_0x386ex9)["map"](function(_0x386exb){return {name:_0x386exb["querySelector"](_0x4d12[17])[_0x4d12[18]],val:_0x386exb["querySelector"](_0x4d12[20])[_0x4d12[18]]}})}function restoreGroup(_0x386ex6,_0x386ex19,_0x386ex1a){document[_0x4d12[3]](_0x386ex6)[_0x4d12[9]]="";if(_0x386ex19){_0x386ex19[_0x4d12[22]](_0x386ex1a)}}function copyText(){var _0x386ex1b=document[_0x4d12[3]](_0x4d12[44]);_0x386ex1b[_0x4d12[51]]();document[_0x4d12[52]](_0x4d12[53]);window[_0x4d12[48]]("복사되었습니다! 📋")}function downloadTxt(){var _0x386exe=document[_0x4d12[3]](_0x4d12[23])[_0x4d12[18]];var _0x386ex1c=document[_0x4d12[3]](_0x4d12[44])[_0x4d12[18]];var _0x386ex1d= new Blob([_0x386ex1c],{type:_0x4d12[54]});var _0x386ex1e=document[_0x4d12[4]]("a");_0x386ex1e[_0x4d12[58]]=URL[_0x4d12[55]](_0x386ex1d);_0x386ex1e[_0x4d12[57]]=_0x386exe+_0x4d12[56];_0x386ex1e[_0x4d12[59]]();URL[_0x4d12[60]](_0x386ex1e[_0x4d12[58]])}window[_0x4d12[61]]=function(){if(localStorage[_0x4d12[49]](_0x4d12[45])){loadFromStorage()}else {render()}}
+</script>
+
+</body>
+</html>
